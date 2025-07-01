@@ -1,0 +1,97 @@
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.pytest_cache/
+.tox/
+.venv/
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.idea/ # PyCharm and IntelliJ IDEA
+.vscode/ # VS Code
+.direnv/ # direnv for environment variables
+
+# Jupyter Notebook
+# ========================
+.ipynb_checkpoints/  # Jupyter Notebook checkpoints
+*.ipynb_checkpoints/ # Older versions might put them in subdirectories
+!my_important_notebook.ipynb # Use ! to *unignore* specific notebooks if needed
+
+# Compiled/temporary files
+*.swp    # vim swap files
+*.bak    # Backup files
+*~       # Emacs/Vim temporary files
+*.swo    # vim swap files
+
+# Operating System Files
+# ========================
+.DS_Store # macOS folder attributes
+.Trashes  # macOS trash
+ehthumbs.db # Windows thumbnail cache
+Thumbs.db   # Windows thumbnail cache
+desktop.ini # Windows desktop customization
+
+# JavaScript & Node.js
+# ========================
+/node_modules
+/npm-debug.log*
+/yarn-debug.log*
+/yarn-error.log*
+.parcel-cache/ # Parcel bundler cache
+/dist/         # Common output directory for built JS
+/build/        # Another common output directory
+/out/          # Another common output directory
+.env           # Environment variables (crucial to ignore!)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.next/         # Next.js build output
+.nuxt/         # Nuxt.js build output
+.cache/        # Webpack, Babel, etc. caches
+/coverage/     # Test coverage reports
+
+# CSS, SASS, LESS
+# ========================
+*.css.map     # Source maps for CSS
+*.min.css     # Minified CSS (if generated and original is tracked)
+/public/css/  # Often compiled CSS output
+/dist/css/    # Another common compiled CSS output
+/build/css/
+
+# HTML
+# ========================
+# Generally, HTML files are tracked. Only ignore if they are generated output.
+# If you have dynamically generated HTML:
+# /generated_html/
+# *.tmp.html
+
+# Logs and databases
+# ========================
+*.log
+*.sqlite
+*.db
+*.sqlite3
+
+# Local secrets/credentials (if not already covered by .env)
+# ========================
+config.local.json
+credentials.json

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Face Swapper</title>
+  <link rel="stylesheet" href="static/CSS/style.css">
+</head>
+<body>
+  <header>
+    <!-- Logo and Title -->
+    <img src="static/Image/logo_v2.jpg" alt="F-AI Logo" class="logo">
+    <h1>Real-time Face Swapper</h1>
+  </header>
+
+  <div class="container">
+    <div class="main-content">
+      <!-- Webcam video feed -->
+      <video id="video" autoplay></video>
+
+      <!-- Display result image after swapping -->
+      <img id="result-img" alt="Result Image">
+
+      <!-- Buttons to upload, generate, and remove image -->
+      <div class="button-group">
+        <button id="genBtn" disabled>Generate</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none;">
+        <button id="uploadBtn">Upload Image</button>
+        <button id="removeBtn" disabled>Remove Image</button>
+      </div>
+
+      <!-- FPS (Frames per second) display -->
+      <div id="simpleFpsBox">
+        <span id="fpsValue">N/A</span> FPS
+      </div>
+    </div>
+
+    <!-- Sidebar containing uploaded images -->
+    <div class="sidebar" id="imageSidebar"></div>
+  </div>
+
+  <script>
+    // === DOM Elements ===
+    const video = document.getElementById('video');
+    const resultImg = document.getElementById('result-img');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const removeBtn = document.getElementById('removeBtn');
+    const genBtn = document.getElementById('genBtn');
+    const fpsBox = document.getElementById('simpleFpsBox');
+    const fps = document.getElementById('fpsValue');
+    const sidebar = document.getElementById('imageSidebar');
+
+    // === State Variables ===
+    let stream;                   // Webcam stream
+    let selectedImage = null;     // URL of selected source image
+    let detecting = false;        // Is detection active?
+
+    let originalVideoWidth = 0;   // Webcam original width
+    let originalVideoHeight = 0;  // Webcam original height
+
+    // === Request Webcam Stream ===
+    navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+      stream = s;
+      video.srcObject = stream;
+
+      // Wait for video metadata before getting resolution
+      video.onloadedmetadata = () => {
+        originalVideoWidth = video.videoWidth;
+        originalVideoHeight = video.videoHeight;
+        console.log(`Original video resolution: ${originalVideoWidth}x${originalVideoHeight}`);
+        if (detecting) {
+            sendFrame(); // Start sending frame if already in detecting mode
+        }
+      };
+    }).catch(error => {
+        console.error("Error accessing webcam:", error);
+        alert("Unable to access the webcam. Please check your camera permissions.");
+    });
+
+    // === Frame sending interval ===
+    let lastSent = 0;
+    const SEND_INTERVAL_MS = 0; // Minimum time between frame sends (ms). 0 = as fast as possible
+
+    // === Send current video frame to server ===
+    function sendFrame() {
+      if (!detecting) return;
+
+      const now = Date.now();
+      if (now - lastSent < SEND_INTERVAL_MS) {
+        // Wait for next interval
+        setTimeout(sendFrame, SEND_INTERVAL_MS - (now - lastSent));
+        return;
+      }
+      lastSent = now;
+
+      // Resize frame before sending to reduce bandwidth and speed up processing
+      const processingWidth = 480; // Change this to control processing resolution
+      let sendCanvasWidth = originalVideoWidth;
+      let sendCanvasHeight = originalVideoHeight;
+
+      if (processingWidth < originalVideoWidth && originalVideoWidth > 0) { 
+          sendCanvasWidth = processingWidth;
+          sendCanvasHeight = Math.round(originalVideoHeight * (processingWidth / originalVideoWidth));
+      }
+
+      // Draw resized frame to canvas
+      const sendCanvas = document.createElement('canvas');
+      sendCanvas.width = sendCanvasWidth;
+      sendCanvas.height = sendCanvasHeight;
+      const sendCtx = sendCanvas.getContext('2d');
+      sendCtx.drawImage(video, 0, 0, sendCanvasWidth, sendCanvasHeight);
+
+      // Convert canvas to base64 JPEG
+      const imageToSend = sendCanvas.toDataURL('image/jpeg', 0.5);
+
+      // Send frame to server for face swapping
+      fetch('/detect_face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageToSend })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const receivedImageBase64 = data.image;
+        const imgElement = new Image();
+
+        imgElement.onload = () => {
+          // Upscale server result back to original size for display
+          const displayCanvas = document.createElement('canvas');
+          displayCanvas.width = originalVideoWidth;
+          displayCanvas.height = originalVideoHeight;
+          const displayCtx = displayCanvas.getContext('2d');
+          displayCtx.drawImage(imgElement, 0, 0, originalVideoWidth, originalVideoHeight);
+
+          // Show the final image
+          resultImg.src = displayCanvas.toDataURL('image/jpeg');
+        };
+
+        imgElement.src = receivedImageBase64;
+        fps.textContent = data.fps;
+
+        // Continue the frame loop
+        if (detecting) {
+          sendFrame();
+        }
+      })
+      .catch(error => {
+        console.error("Error sending frame:", error);
+        if (detecting) sendFrame(); // Try again
+      });
+    }
+
+    // === Remove selected image on click ===
+    removeBtn.onclick = function() {
+      if (genBtn.textContent === "Generate") {
+        if (!selectedImage) {
+          console.log("No image selected to remove.");
+          return;
+        }
+
+        fetch("rmv_img", {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_url: selectedImage })
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Server response', data);
+          loadImageList(); // Refresh image list
+          selectedImage = null;
+          genBtn.disabled = true;
+          removeBtn.disabled = true;
+        })
+        .catch(error => {
+          console.log('Error sending image to server:', error);
+        });
+      }
+    };
+
+    // === Toggle face swap detection mode ===
+    genBtn.onclick = function() {
+      detecting = !detecting;
+
+      if (detecting) {
+        if (!selectedImage) {
+          alert("Please select a source image before swapping.");
+          detecting = false;
+          return;
+        }
+
+        // Send source image info to server
+        fetch("/source_img", {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_url: selectedImage })
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Server response:', data);
+          genBtn.textContent = "Generating...";
+          uploadBtn.disabled = true;
+          removeBtn.disabled = true;
+          video.style.display = 'none';
+          resultImg.style.display = 'block';
+          fpsBox.classList.add('show');
+          sendFrame(); // Start frame loop
+        })
+        .catch(error => {
+          console.error('Error sending image to server:', error);
+          detecting = false;
+          genBtn.textContent = "Generate";
+          removeBtn.disabled = false;
+          alert("Failed to send image to server. Try again.");
+        });
+      } else {
+        // Stop generation mode and restore UI
+        genBtn.textContent = "Generate";
+        uploadBtn.disabled = false;
+        removeBtn.disabled = false;
+        video.style.display = 'block';
+        resultImg.style.display = 'none';
+        fpsBox.classList.remove('show');
+      }
+    };
+
+    // === Handle image upload ===
+    uploadBtn.onclick = () => fileInput.click(); // Trigger hidden file input
+    fileInput.onchange = () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      fetch('/upload', { method: 'POST', body: formData })
+        .then(response => {
+          if (response.ok) {
+            fileInput.value = ''; // Reset file input
+          } else {
+            alert("Image upload failed. Check the file format.");
+          }
+          loadImageList(); // Refresh image list
+        })
+        .catch(error => {
+          console.error("Upload error:", error);
+          alert("Upload failed. Check network or server.");
+        });
+    };
+
+    // === Load and display uploaded images in sidebar ===
+    function loadImageList() {
+      fetch('/list_images')
+        .then(res => res.json())
+        .then(files => {
+          sidebar.innerHTML = ''; // Clear current sidebar
+          files.forEach(fname => {
+            const img = document.createElement('img');
+            img.src = `/images/${fname}`;
+            img.className = 'image-option';
+
+            // Image click handler: select/deselect image
+            img.onclick = () => {
+              if (selectedImage === img.src) {
+                // Deselect if already selected
+                if (genBtn.textContent === 'Generate') {
+                  img.classList.remove('selected');
+                  selectedImage = null;
+                  genBtn.disabled = true;
+                  removeBtn.disabled = true;
+                }
+              } else {
+                // Select new image
+                if (genBtn.textContent === 'Generate') {
+                  document.querySelectorAll('.image-option').forEach(i => i.classList.remove('selected'));
+                  img.classList.add('selected');
+                  selectedImage = img.src;
+                  genBtn.disabled = false;
+                  removeBtn.disabled = false;
+                }
+              }
+            };
+
+            sidebar.appendChild(img); // Add image to sidebar
+          });
+
+          // If previously selected image was deleted
+          if (selectedImage && !files.some(f => `/images/${f}` === selectedImage)) {
+            selectedImage = null;
+            genBtn.disabled = true;
+            removeBtn.disabled = true;
+          }
+        })
+        .catch(error => {
+          console.error("Error loading image list:", error);
+          alert("Failed to load image list.");
+        });
+    }
+
+    // Load image list at startup
+    loadImageList();
+  </script>
+</body>
+</html>

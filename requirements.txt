@@ -3,5 +3,5 @@ torchvision
 opencv-python
 flask 
 insightface 
-onnxruntime-gpu
+# onnxruntime-gpu
 numpy

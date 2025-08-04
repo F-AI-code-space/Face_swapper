@@ -118,15 +118,15 @@ button {
 }
 
 #genBtn {
-  background-color: #ff6b6b; /* Softer red for Generate */
+  background-color: #ff6b6b; 
 }
 
 #uploadBtn {
-  background-color: #4caf50; /* Softer green for Upload Image */
+  background-color: #4caf50; 
 }
 
 #removeBtn {
-  background-color: #ffca28; /* Softer yellow for Remove Image */
+  background-color: #ffca28; 
 }
 
 button:hover:not(:disabled) {
@@ -143,15 +143,15 @@ button:disabled {
 }
 
 #genBtn:disabled {
-    background-color: #bd6f6f; /* Màu đỏ rất nhạt */
+    background-color: #bd6f6f;
 }
 
 #uploadBtn:disabled {
-    background-color: #6bb16d; /* Màu xanh rất nhạt */
+    background-color: #6bb16d;
 }
 
 #removeBtn:disabled {
-    background-color: #b69e57; /* Màu vàng rất nhạt */
+    background-color: #b69e57;
 }
 
 #simpleFpsBox {

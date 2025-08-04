@@ -107,7 +107,13 @@ app.run(host='0.0.0.0', port=4433, ssl_context=('cert.pem', 'key.pem'))
 Note: For production, consider using Let's Encrypt instead of self-signed certificates.
 
 ## Run the Application
+In app.py, you need to set this key for security purpose
+```python
+app.secret_key = 'your_super_secret_key'
+```
 
+
+To run code
 ```bash
 python app.py
 ```
